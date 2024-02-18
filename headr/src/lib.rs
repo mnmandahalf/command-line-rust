@@ -1,5 +1,7 @@
 use clap::{App, Arg};
 use std::error::Error;
+use std::fs::File;
+use std::io::{self, Read, BufRead, BufReader};
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -11,15 +13,45 @@ pub struct Config {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
-    match config.lines {
-        0 => println!("lines: {}", config.lines),
-        _ => println!("lines: {}", config.lines),
-    }
-    match config.bytes {
-        Some(n) => println!("bytes: {}", n),
-        None => println!("lines: {}", config.lines),
+    let num_files = config.files.len();
+    for (file_num, filename) in config.files.iter().enumerate() {
+        match open(&filename) {
+            Err(err) => eprintln!("{}: {}", filename, err),
+            Ok(mut file) => {
+                if num_files > 1 {
+                    println!(
+                        "{}==> {} <==",
+                        if file_num > 0 { "\n" } else { "" },
+                        filename
+                    );
+                }
+                if let Some(num_bytes) = config.bytes {
+                    let mut handle = file.take(num_bytes as u64);
+                    let mut buffuer = vec![0; num_bytes];
+                    let bytes_read = handle.read(&mut buffuer)?;
+                    print!("{}", String::from_utf8_lossy(&buffuer[..bytes_read]));
+                } else {
+                    let mut line = String::new();
+                    for _ in 0..config.lines {
+                        let bytes = file.read_line(&mut line)?;
+                        if bytes == 0 {
+                            break;
+                        }
+                        print!("{}", line);
+                        line.clear();
+                    }
+                }
+            }
+        }
     }
     Ok(())
+}
+
+fn open(filename: &str) -> MyResult<Box<dyn BufRead>> {
+    match filename {
+        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
+        _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+    }
 }
 
 fn parse_positive_int(val: &str) -> MyResult<usize> {
