@@ -18,29 +18,40 @@ pub fn get_args() -> MyResult<Config> {
     .author("mnmandahalf")
     .about("Rust wc")
     .arg(
-      Arg::with_name("FILE")
+      Arg::with_name("files")
+        .value_name("FILE")
         .help("Input file(s)")
         .multiple(true)
         .default_value("-"),
+    )
+    .arg(
+      Arg::with_name("words")
+        .short("w")
+        .long("words")
+        .help("Show word count")
+        .takes_value(false),
     )
     .arg(
       Arg::with_name("bytes")
         .short("c")
         .long("bytes")
         .help("Show byte count")
+        .takes_value(false),
     )
     .arg(
       Arg::with_name("chars")
         .short("m")
         .long("chars")
         .help("Show character count")
-        .conflicts_with("bytes")
+        .takes_value(false)
+        .conflicts_with("bytes"),
     )
     .arg(
       Arg::with_name("lines")
         .short("l")
         .long("lines")
-        .help("Show line count"),
+        .help("Show line count")
+        .takes_value(false),
     )
     .arg(
       Arg::with_name("version")
@@ -48,19 +59,24 @@ pub fn get_args() -> MyResult<Config> {
         .long("version")
         .help("Prints version information"),
     )
-    .arg(
-      Arg::with_name("words")
-        .short("w")
-        .long("words")
-        .help("Show word count"),
-    )
     .get_matches();
+
+  let mut lines = matches.is_present("lines");
+  let mut words = matches.is_present("words");
+  let mut bytes = matches.is_present("bytes");
+  let mut chars = matches.is_present("chars");
+
+  if [lines, words, bytes, chars].iter().all(|v| v == &false) {
+    lines = true;
+    words = true;
+    bytes = true;
+  }
   Ok(Config {
-    files: matches.values_of_lossy("files").unwrap_or_default(),
-    lines: matches.is_present("lines"),
-    words: matches.is_present("words"),
-    bytes: matches.is_present("bytes"),
-    chars: matches.is_present("chars"),
+    files: matches.values_of_lossy("files").unwrap(),
+    lines: lines,
+    words: words,
+    bytes: bytes,
+    chars: chars,
   })
 }
 
